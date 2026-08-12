@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Server Dashboard</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue: #1E90FF; --blue-dark: #0066cc; --blue-glow: rgba(30,144,255,0.3);
+      --bg: #080c10; --bg2: #0d1117; --bg3: #111620; --card: #0f1520;
+      --border: rgba(30,144,255,0.18); --text: #e8eaf0; --muted: #7b8299;
+      --success: #00d26a; --danger: #ff4444; --sidebar-w: 260px;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* TOPBAR */
+    .topbar {
+      height: 60px; background: rgba(8,12,16,.97); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 24px; gap: 16px; position: sticky; top: 0; z-index: 60;
+    }
+    .topbar-logo { font-weight: 900; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topbar-logo span { color: var(--blue); }
+    .topbar-sep { color: var(--border); font-size: 1.2rem; }
+    .topbar-server { font-weight: 700; font-size: .95rem; }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .topbar-avatar { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--blue); }
+    .btn-sm { background: transparent; border: 1px solid var(--border); color: var(--muted);
+      padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: .8rem;
+      text-decoration: none; transition: border-color .2s, color .2s; }
+    .btn-sm:hover { border-color: var(--blue); color: var(--text); }
+
+    /* LAYOUT */
+    .layout { display: flex; flex: 1; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--border);
+      padding: 24px 0; position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto; flex-shrink: 0;
+    }
+    .sidebar-section { padding: 0 16px; margin-bottom: 8px; }
+    .sidebar-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
+      color: var(--muted); padding: 0 8px; margin-bottom: 4px; display: block; }
+    .sidebar-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px;
+      cursor: pointer; color: var(--muted); font-size: .9rem; font-weight: 600; transition: all .15s;
+      margin-bottom: 2px; border: 1px solid transparent; text-decoration: none;
+    }
+    .sidebar-item:hover { background: rgba(30,144,255,.08); color: var(--text); }
+    .sidebar-item.active { background: rgba(30,144,255,.15); color: var(--blue); border-color: rgba(30,144,255,.25); }
+    .sidebar-icon { font-size: 1.1rem; width: 22px; text-align: center; }
+
+    /* MAIN CONTENT */
+    .content { flex: 1; padding: 36px 40px; overflow-y: auto; max-width: 900px; }
+
+    /* SECTION */
+    .section { display: none; }
+    .section.active { display: block; }
+    .section-header { margin-bottom: 28px; }
+    .section-title { font-size: 1.5rem; font-weight: 900; text-transform: uppercase; letter-spacing: .02em; }
+    .section-desc { color: var(--muted); font-size: .9rem; margin-top: 6px; }
+
+    /* STAT TILES */
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+    .stat-tile { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 20px 24px; }
+    .stat-tile-num { font-size: 2rem; font-weight: 900; color: var(--blue); line-height: 1; }
+    .stat-tile-label { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; margin-top: 4px; }
+
+    /* CARD */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 28px; margin-bottom: 20px; }
+    .card-title { font-weight: 700; font-size: 1rem; text-transform: uppercase; letter-spacing: .05em;
+      margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+
+    /* FORM */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+    input[type="text"], input[type="color"], select, textarea {
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); padding: 10px 14px; font-size: .9rem; font-family: inherit; outline: none;
+      transition: border-color .2s;
+    }
+    input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--blue); }
+    select option { background: var(--bg3); }
+    textarea { resize: vertical; min-height: 80px; }
+
+    /* TOGGLE */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .toggle-info .toggle-title { font-weight: 700; font-size: .95rem; }
+    .toggle-info .toggle-sub { color: var(--muted); font-size: .82rem; margin-top: 2px; }
+    .toggle { position: relative; width: 48px; height: 26px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 26px; cursor: pointer; transition: .2s; }
+    .toggle-slider::before { content: ''; position: absolute; width: 18px; height: 18px; background: var(--muted);
+      border-radius: 50%; left: 3px; top: 3px; transition: .2s; }
+    .toggle input:checked + .toggle-slider { background: rgba(30,144,255,.25); border-color: var(--blue); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(22px); background: var(--blue); }
+
+    /* BUTTONS */
+    .btn-save {
+      background: var(--blue); color: #fff; border: none; padding: 12px 28px; border-radius: 8px;
+      font-weight: 700; font-size: .9rem; cursor: pointer; text-transform: uppercase; letter-spacing: .05em;
+      transition: background .2s, box-shadow .2s; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-save:hover { background: var(--blue-dark); box-shadow: 0 0 20px var(--blue-glow); }
+    .btn-save:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-danger {
+      background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 8px 16px;
+      border-radius: 6px; font-weight: 700; font-size: .8rem; cursor: pointer;
+      transition: background .2s; text-transform: uppercase;
+    }
+    .btn-danger:hover { background: rgba(255,68,68,.1); }
+
+    /* CUSTOM COMMANDS */
+    .cmd-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .cmd-item { display: flex; align-items: center; justify-content: space-between;
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; }
+    .cmd-name { font-weight: 700; color: var(--blue); font-size: .9rem; }
+    .cmd-resp { color: var(--muted); font-size: .82rem; margin-top: 2px; }
+
+    /* ROLE TABLE */
+    .role-table { width: 100%; border-collapse: collapse; }
+    .role-table th { text-align: left; font-size: .75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    .role-table td { padding: 10px 12px; border-bottom: 1px solid rgba(30,144,255,.07); font-size: .88rem; }
+    .role-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 20px; font-size: .9rem; font-weight: 600; z-index: 999;
+      transform: translateY(80px); opacity: 0; transition: all .3s; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-color: var(--success); color: var(--success); }
+    .toast.error { border-color: var(--danger); color: var(--danger); }
+
+    .loading-overlay { display: flex; align-items: center; justify-content: center; height: 300px; }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--blue);
+      border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .content { padding: 20px; }
+      .form-row { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a href="/" class="topbar-logo"><span>Bot</span>Dashboard</a>
+  <span class="topbar-sep">/</span>
+  <span class="topbar-server" id="serverName">Lädt...</span>
+  <div class="topbar-right">
+    <img class="topbar-avatar" id="userAvatar" src="" alt=""/>
+    <span id="userName" style="font-size:.88rem;font-weight:600"></span>
+    <a href="/servers" class="btn-sm">← Server</a>
+    <a href="/logout" class="btn-sm">Abmelden</a>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <span class="sidebar-label">Übersicht</span>
+      <div class="sidebar-item active" onclick="showSection('overview')">
+        <span class="sidebar-icon">📊</span> Übersicht
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <span class="sidebar-label">Konfiguration</span>
+      <div class="sidebar-item" onclick="showSection('welcome')">
+        <span class="sidebar-icon">👋</span> Willkommen
+      </div>
+      <div class="sidebar-item" onclick="showSection('logging')">
+        <span class="sidebar-icon">📋</span> Logging
+      </div>
+      <div class="sidebar-item" onclick="showSection('moderation')">
+        <span class="sidebar-icon">🛡️</span> Moderation
+      </div>
+      <div class="sidebar-item" onclick="showSection('tickets')">
+        <span class="sidebar-icon">🎫</span> Tickets
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <span class="sidebar-label">Erweitert</span>
+      <div class="sidebar-item" onclick="showSection('commands')">
+        <span class="sidebar-icon">⚡</span> Custom Commands
+      </div>
+      <div class="sidebar-item" onclick="showSection('roles')">
+        <span class="sidebar-icon">🎭</span> Rollen & Rechte
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="content">
+
+    <!-- OVERVIEW -->
+    <div class="section active" id="section-overview">
+      <div class="section-header">
+        <div class="section-title">📊 Übersicht</div>
+        <div class="section-desc">Statistiken und Status deines Servers.</div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-tile"><div class="stat-tile-num" id="stat-warnings">–</div><div class="stat-tile-label">Aktive Verwarnungen</div></div>
+        <div class="stat-tile"><div class="stat-tile-num" id="stat-open-tickets">–</div><div class="stat-tile-label">Offene Tickets</div></div>
+        <div class="stat-tile"><div class="stat-tile-num" id="stat-closed-tickets">–</div><div class="stat-tile-label">Abgeschlossene Tickets</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">ℹ️ Bot-Info</div>
+        <p style="color:var(--muted);font-size:.9rem;line-height:1.8">
+          Dein Bot ist aktiv und bereit. Nutze die Sidebar, um alle Features zu konfigurieren.<br>
+          Änderungen werden sofort nach dem Speichern wirksam.
+        </p>
+      </div>
+    </div>
+
+    <!-- WELCOME -->
+    <div class="section" id="section-welcome">
+      <div class="section-header">
+        <div class="section-title">👋 Willkommen</div>
+        <div class="section-desc">Begrüße neue Mitglieder automatisch mit einer Embed-Nachricht.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚙️ Einstellungen</div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-title">Willkommensnachrichten aktivieren</div>
+            <div class="toggle-sub">Neue Mitglieder werden automatisch begrüßt</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="welcome-enabled"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Willkommens-Kanal</label>
+            <select id="welcome-channel"><option value="">Kanal wählen...</option></select>
+          </div>
+          <div class="form-group">
+            <label>Embed-Farbe</label>
+            <input type="color" id="welcome-color" value="#1E90FF" style="height:42px;padding:4px 8px;cursor:pointer"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Nachricht (Variablen: {user}, {server}, {count})</label>
+          <textarea id="welcome-message" placeholder="Willkommen {user} auf {server}! 👋"></textarea>
+        </div>
+        <button class="btn-save" onclick="saveSection('welcome')">💾 Speichern</button>
+      </div>
+    </div>
+
+    <!-- LOGGING -->
+    <div class="section" id="section-logging">
+      <div class="section-header">
+        <div class="section-title">📋 Logging</div>
+        <div class="section-desc">Protokolliere Moderationsaktionen in einem dedizierten Kanal.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚙️ Log-Kanäle</div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-title">Logging aktivieren</div>
+            <div class="toggle-sub">Moderationsaktionen werden protokolliert</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="logging-enabled"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Moderations-Log Kanal</label>
+            <select id="logging-modchannel"><option value="">Kanal wählen...</option></select>
+          </div>
+          <div class="form-group">
+            <label>Server-Log Kanal</label>
+            <select id="logging-channel"><option value="">Kanal wählen...</option></select>
+          </div>
+        </div>
+        <button class="btn-save" onclick="saveSection('logging')">💾 Speichern</button>
+      </div>
+    </div>
+
+    <!-- MODERATION -->
+    <div class="section" id="section-moderation">
+      <div class="section-header">
+        <div class="section-title">🛡️ Moderation</div>
+        <div class="section-desc">Auto-Mod und Moderationseinstellungen verwalten.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">🤖 Auto-Moderation</div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-title">Auto-Mod aktivieren</div>
+            <div class="toggle-sub">Automatische Inhaltsfilterung</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="automod-enabled"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-title">Anti-Spam</div>
+            <div class="toggle-sub">Spam-Nachrichten automatisch löschen</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="automod-spam"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-title">Anti-Links</div>
+            <div class="toggle-sub">Externe Links blockieren</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="automod-links"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-title">Anti-Invites</div>
+            <div class="toggle-sub">Discord-Einladungslinks blockieren</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="automod-invites"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚙️ Moderations-Rollen</div>
+        <div class="form-group">
+          <label>Muted-Rolle</label>
+          <select id="mod-mutedrole"><option value="">Rolle wählen...</option></select>
+        </div>
+        <button class="btn-save" onclick="saveSection('moderation')">💾 Speichern</button>
+      </div>
+    </div>
+
+    <!-- TICKETS -->
+    <div class="section" id="section-tickets">
+      <div class="section-header">
+        <div class="section-title">🎫 Ticket-System</div>
+        <div class="section-desc">Konfiguriere das Support-Ticket-System für deinen Server.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚙️ Ticket-Einstellungen</div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-title">Ticket-System aktivieren</div>
+            <div class="toggle-sub">User können Support-Tickets erstellen</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="tickets-enabled"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Ticket-Kategorie</label>
+            <select id="tickets-category"><option value="">Kategorie wählen...</option></select>
+          </div>
+          <div class="form-group">
+            <label>Log-Kanal</label>
+            <select id="tickets-log"><option value="">Kanal wählen...</option></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Support-Rollen (können Tickets sehen)</label>
+          <select id="tickets-support" multiple style="min-height:90px">
+            <option value="">Lade Rollen...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Öffnungsnachricht im Ticket</label>
+          <textarea id="tickets-message" placeholder="Beschreibe dein Anliegen..."></textarea>
+        </div>
+        <button class="btn-save" onclick="saveSection('tickets')">💾 Speichern</button>
+      </div>
+      <div class="card">
+        <div class="card-title">📤 Ticket-Panel senden</div>
+        <p style="color:var(--muted);font-size:.88rem;margin-bottom:16px">Nutze den Slash-Command <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;color:var(--blue)">/ticket panel</code> in deinem Server um das Panel in einen Kanal zu senden.</p>
+      </div>
+    </div>
+
+    <!-- CUSTOM COMMANDS -->
+    <div class="section" id="section-commands">
+      <div class="section-header">
+        <div class="section-title">⚡ Custom Commands</div>
+        <div class="section-desc">Erstelle eigene Slash-Commands ohne Code.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">➕ Neuer Command</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Name (ohne /)</label>
+            <input type="text" id="cmd-name" placeholder="z.B. rules"/>
+          </div>
+          <div class="form-group">
+            <label>Beschreibung</label>
+            <input type="text" id="cmd-desc" placeholder="Zeigt die Regeln an"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Antwort des Bots</label>
+          <textarea id="cmd-response" placeholder="Die Antwort die der Bot sendet..."></textarea>
+        </div>
+        <div class="toggle-row" style="margin-bottom:20px">
+          <div class="toggle-info">
+            <div class="toggle-title">Ephemeral (nur für den User sichtbar)</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="cmd-ephemeral"><span class="toggle-slider"></span></label>
+        </div>
+        <button class="btn-save" onclick="addCustomCommand()">➕ Command hinzufügen</button>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 Bestehende Commands</div>
+        <div class="cmd-list" id="cmd-list">
+          <p style="color:var(--muted);font-size:.88rem">Keine Commands vorhanden.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROLES -->
+    <div class="section" id="section-roles">
+      <div class="section-header">
+        <div class="section-title">🎭 Rollen & Rechte</div>
+        <div class="section-desc">Vergib Rollen spezifische Bot-Berechtigungen.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚙️ Rollenberechtigungen</div>
+        <p style="color:var(--muted);font-size:.88rem;margin-bottom:20px">Wähle eine Rolle und konfiguriere ihre Bot-Berechtigungen.</p>
+        <div class="form-group">
+          <label>Rolle auswählen</label>
+          <select id="role-select" onchange="loadRolePerms()" style="margin-bottom:16px">
+            <option value="">Rolle wählen...</option>
+          </select>
+        </div>
+        <div id="role-perms-form" style="display:none">
+          <div class="toggle-row">
+            <div class="toggle-info"><div class="toggle-title">Kann bannen</div></div>
+            <label class="toggle"><input type="checkbox" id="rp-ban"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info"><div class="toggle-title">Kann kicken</div></div>
+            <label class="toggle"><input type="checkbox" id="rp-kick"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info"><div class="toggle-title">Kann muten (Timeout)</div></div>
+            <label class="toggle"><input type="checkbox" id="rp-mute"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info"><div class="toggle-title">Kann verwarnen</div></div>
+            <label class="toggle"><input type="checkbox" id="rp-warn"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info"><div class="toggle-title">Kann Nachrichten löschen (Purge)</div></div>
+            <label class="toggle"><input type="checkbox" id="rp-purge"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info"><div class="toggle-title">Kann Tickets verwalten</div></div>
+            <label class="toggle"><input type="checkbox" id="rp-tickets"><span class="toggle-slider"></span></label>
+          </div>
+          <button class="btn-save" style="margin-top:8px" onclick="saveRolePerms()">💾 Speichern</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const guildId = location.pathname.split('/').pop();
+let config = {};
+let channels = [];
+let roles = [];
+
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = (type === 'success' ? '✅ ' : '❌ ') + msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function init() {
+  try {
+    const [userRes, cfgRes, chRes, rRes, statsRes] = await Promise.all([
+      fetch('/api/user').then(r => r.json()),
+      fetch(`/api/guild/${guildId}`).then(r => r.json()),
+      fetch(`/api/guild/${guildId}/channels`).then(r => r.json()),
+      fetch(`/api/guild/${guildId}/roles`).then(r => r.json()),
+      fetch(`/api/guild/${guildId}/stats`).then(r => r.json())
+    ]);
+
+    config = cfgRes;
+    channels = chRes;
+    roles = rRes;
+
+    // User
+    const av = userRes.avatar ? `https://cdn.discordapp.com/avatars/${userRes.id}/${userRes.avatar}.png` : '';
+    document.getElementById('userAvatar').src = av;
+    document.getElementById('userName').textContent = userRes.global_name || userRes.username;
+
+    // Stats
+    document.getElementById('stat-warnings').textContent = statsRes.warnings;
+    document.getElementById('stat-open-tickets').textContent = statsRes.openTickets;
+    document.getElementById('stat-closed-tickets').textContent = statsRes.closedTickets;
+
+    // Populate dropdowns
+    const textChannels = channels.filter(c => c.type === 0);
+    const categories = channels.filter(c => c.type === 4);
+
+    populateSelect('welcome-channel', textChannels);
+    populateSelect('logging-channel', textChannels);
+    populateSelect('logging-modchannel', textChannels);
+    populateSelect('tickets-log', textChannels);
+    populateSelect('tickets-category', categories);
+    populateSelect('mod-mutedrole', roles.filter(r => r.id !== guildId));
+    populateSelect('role-select', roles.filter(r => r.id !== guildId));
+
+    const supportSel = document.getElementById('tickets-support');
+    supportSel.innerHTML = '';
+    roles.filter(r => r.id !== guildId).forEach(r => {
+      const o = new Option(r.name, r.id);
+      supportSel.appendChild(o);
+    });
+
+    // Fill form values
+    const w = config.welcome || {};
+    document.getElementById('welcome-enabled').checked = w.enabled;
+    setSelect('welcome-channel', w.channelId);
+    document.getElementById('welcome-color').value = w.embedColor || '#1E90FF';
+    document.getElementById('welcome-message').value = w.message || '';
+
+    const l = config.logging || {};
+    document.getElementById('logging-enabled').checked = l.enabled;
+    setSelect('logging-channel', l.channelId);
+    setSelect('logging-modchannel', l.modLogChannelId);
+
+    const m = config.moderation || {};
+    document.getElementById('automod-enabled').checked = m.autoMod?.enabled;
+    document.getElementById('automod-spam').checked = m.autoMod?.antiSpam;
+    document.getElementById('automod-links').checked = m.autoMod?.antiLinks;
+    document.getElementById('automod-invites').checked = m.autoMod?.antiInvites;
+    setSelect('mod-mutedrole', m.mutedRoleId);
+
+    const tk = config.tickets || {};
+    document.getElementById('tickets-enabled').checked = tk.enabled;
+    setSelect('tickets-category', tk.categoryId);
+    setSelect('tickets-log', tk.logChannelId);
+    document.getElementById('tickets-message').value = tk.openMessage || '';
+    if (tk.supportRoleIds) {
+      [...supportSel.options].forEach(o => {
+        o.selected = tk.supportRoleIds.includes(o.value);
+      });
+    }
+
+    // Custom commands
+    renderCommands();
+
+  } catch (e) {
+    console.error(e);
+    toast('Fehler beim Laden', 'error');
+  }
+}
+
+function populateSelect(id, items, labelKey = 'name', valueKey = 'id') {
+  const sel = document.getElementById(id);
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Auswählen...</option>';
+  (items || []).forEach(item => {
+    sel.appendChild(new Option(item[labelKey], item[valueKey]));
+  });
+  if (cur) sel.value = cur;
+}
+
+function setSelect(id, val) {
+  if (val) document.getElementById(id).value = val;
+}
+
+async function saveSection(section) {
+  let body = {};
+
+  if (section === 'welcome') {
+    body.welcome = {
+      enabled: document.getElementById('welcome-enabled').checked,
+      channelId: document.getElementById('welcome-channel').value,
+      embedColor: document.getElementById('welcome-color').value,
+      message: document.getElementById('welcome-message').value
+    };
+  } else if (section === 'logging') {
+    body.logging = {
+      enabled: document.getElementById('logging-enabled').checked,
+      channelId: document.getElementById('logging-channel').value,
+      modLogChannelId: document.getElementById('logging-modchannel').value
+    };
+  } else if (section === 'moderation') {
+    body.moderation = {
+      mutedRoleId: document.getElementById('mod-mutedrole').value,
+      autoMod: {
+        enabled: document.getElementById('automod-enabled').checked,
+        antiSpam: document.getElementById('automod-spam').checked,
+        antiLinks: document.getElementById('automod-links').checked,
+        antiInvites: document.getElementById('automod-invites').checked
+      }
+    };
+  } else if (section === 'tickets') {
+    const supportSel = document.getElementById('tickets-support');
+    body.tickets = {
+      enabled: document.getElementById('tickets-enabled').checked,
+      categoryId: document.getElementById('tickets-category').value,
+      logChannelId: document.getElementById('tickets-log').value,
+      supportRoleIds: [...supportSel.selectedOptions].map(o => o.value),
+      openMessage: document.getElementById('tickets-message').value
+    };
+  }
+
+  try {
+    const res = await fetch(`/api/guild/${guildId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    if (res.ok) { Object.assign(config, body); toast('Gespeichert!'); }
+    else toast('Fehler beim Speichern', 'error');
+  } catch { toast('Verbindungsfehler', 'error'); }
+}
+
+function renderCommands() {
+  const list = document.getElementById('cmd-list');
+  const cmds = config.customCommands || [];
+  if (!cmds.length) {
+    list.innerHTML = '<p style="color:var(--muted);font-size:.88rem">Keine Commands vorhanden.</p>';
+    return;
+  }
+  list.innerHTML = cmds.map(c => `
+    <div class="cmd-item">
+      <div>
+        <div class="cmd-name">/${escHtml(c.name)}</div>
+        <div class="cmd-resp">${escHtml(c.response?.substring(0, 80))}${c.response?.length > 80 ? '...' : ''}</div>
+      </div>
+      <button class="btn-danger" onclick="deleteCommand('${escHtml(c.name)}')">Löschen</button>
+    </div>
+  `).join('');
+}
+
+async function addCustomCommand() {
+  const name = document.getElementById('cmd-name').value.trim().toLowerCase().replace(/\s+/g, '-');
+  const desc = document.getElementById('cmd-desc').value.trim();
+  const response = document.getElementById('cmd-response').value.trim();
+  const ephemeral = document.getElementById('cmd-ephemeral').checked;
+
+  if (!name || !response) return toast('Name und Antwort erforderlich', 'error');
+
+  try {
+    const res = await fetch(`/api/guild/${guildId}/commands`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description: desc || 'Custom Command', response, ephemeral })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      config.customCommands = [...(config.customCommands || []), { name, description: desc, response, ephemeral }];
+      renderCommands();
+      document.getElementById('cmd-name').value = '';
+      document.getElementById('cmd-desc').value = '';
+      document.getElementById('cmd-response').value = '';
+      toast('Command hinzugefügt!');
+    } else toast(data.error || 'Fehler', 'error');
+  } catch { toast('Fehler', 'error'); }
+}
+
+async function deleteCommand(name) {
+  if (!confirm(`/${name} wirklich löschen?`)) return;
+  try {
+    await fetch(`/api/guild/${guildId}/commands/${name}`, { method: 'DELETE' });
+    config.customCommands = config.customCommands.filter(c => c.name !== name);
+    renderCommands();
+    toast('Command gelöscht!');
+  } catch { toast('Fehler', 'error'); }
+}
+
+function loadRolePerms() {
+  const roleId = document.getElementById('role-select').value;
+  const form = document.getElementById('role-perms-form');
+  if (!roleId) { form.style.display = 'none'; return; }
+  form.style.display = 'block';
+  const existing = (config.rolePermissions || []).find(r => r.roleId === roleId) || {};
+  document.getElementById('rp-ban').checked = existing.canBan || false;
+  document.getElementById('rp-kick').checked = existing.canKick || false;
+  document.getElementById('rp-mute').checked = existing.canMute || false;
+  document.getElementById('rp-warn').checked = existing.canWarn || false;
+  document.getElementById('rp-purge').checked = existing.canPurge || false;
+  document.getElementById('rp-tickets').checked = existing.canManageTickets || false;
+}
+
+async function saveRolePerms() {
+  const roleId = document.getElementById('role-select').value;
+  if (!roleId) return;
+  const perms = {
+    roleId,
+    canBan: document.getElementById('rp-ban').checked,
+    canKick: document.getElementById('rp-kick').checked,
+    canMute: document.getElementById('rp-mute').checked,
+    canWarn: document.getElementById('rp-warn').checked,
+    canPurge: document.getElementById('rp-purge').checked,
+    canManageTickets: document.getElementById('rp-tickets').checked
+  };
+  const existing = config.rolePermissions || [];
+  const idx = existing.findIndex(r => r.roleId === roleId);
+  if (idx >= 0) existing[idx] = perms; else existing.push(perms);
+  config.rolePermissions = existing;
+  try {
+    const res = await fetch(`/api/guild/${guildId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rolePermissions: existing })
+    });
+    if (res.ok) toast('Rollenrechte gespeichert!');
+    else toast('Fehler', 'error');
+  } catch { toast('Fehler', 'error'); }
+}
+
+function escHtml(str = '') {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "name": "discord-bot",
+  "version": "1.0.0",
+  "description": "Feature-rich Discord Bot with Web Dashboard",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "deploy": "node src/bot/deployCommands.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "@discordjs/rest": "^2.4.0",
+    "discord-api-types": "^0.37.97",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "mongoose": "^8.5.0",
+    "connect-mongo": "^5.1.0",
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

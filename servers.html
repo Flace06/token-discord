@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Server auswählen – Dashboard</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue: #1E90FF; --blue-dark: #0066cc; --blue-glow: rgba(30,144,255,0.3);
+      --bg: #080c10; --bg2: #0d1117; --card: #0f1520; --border: rgba(30,144,255,0.18);
+      --text: #e8eaf0; --muted: #7b8299;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 5%; height: 70px; background: rgba(8,12,16,0.95);
+      border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50;
+    }
+    .nav-logo { font-weight: 900; font-size: 1.1rem; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .nav-logo span { color: var(--blue); }
+    .user-info { display: flex; align-items: center; gap: 12px; }
+    .user-avatar { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--blue); }
+    .user-name { font-weight: 600; font-size: .9rem; }
+    .btn-logout { background: transparent; border: 1px solid var(--border); color: var(--muted);
+      padding: 7px 16px; border-radius: 6px; cursor: pointer; font-size: .85rem;
+      transition: border-color .2s, color .2s; text-decoration: none; }
+    .btn-logout:hover { border-color: var(--blue); color: var(--text); }
+
+    main { max-width: 1100px; margin: 0 auto; padding: 60px 24px; }
+    .page-header { text-align: center; margin-bottom: 48px; }
+    .page-tag { color: var(--blue); font-weight: 700; font-size: .8rem; text-transform: uppercase;
+      letter-spacing: .15em; display: block; margin-bottom: 12px; }
+    h1 { font-size: 2.2rem; font-weight: 900; text-transform: uppercase; }
+    .page-sub { color: var(--muted); margin-top: 10px; font-size: .95rem; }
+
+    .servers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+    .server-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 28px 20px; text-align: center; text-decoration: none; color: var(--text);
+      transition: border-color .2s, transform .2s, box-shadow .2s; position: relative; overflow: hidden;
+    }
+    .server-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--blue), transparent); opacity: 0; transition: opacity .3s;
+    }
+    .server-card:hover { border-color: rgba(30,144,255,.5); transform: translateY(-4px); box-shadow: 0 8px 32px rgba(30,144,255,.15); }
+    .server-card:hover::before { opacity: 1; }
+    .server-icon { width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 16px;
+      border: 2px solid var(--border); object-fit: cover; }
+    .server-icon-placeholder {
+      width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 16px;
+      background: linear-gradient(135deg, var(--blue-dark), var(--blue));
+      display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 900; color: #fff;
+    }
+    .server-name { font-weight: 700; font-size: 1rem; margin-bottom: 6px; }
+    .server-id { color: var(--muted); font-size: .75rem; font-family: monospace; margin-bottom: 20px; }
+    .server-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--blue); color: #fff; padding: 9px 20px;
+      border-radius: 6px; font-weight: 700; font-size: .85rem; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .server-card.not-in-guild {
+      opacity: .65;
+    }
+    .server-card.not-in-guild .server-btn {
+      background: var(--border); color: var(--muted);
+    }
+    .not-in-badge { font-size: .75rem; color: var(--muted); margin-bottom: 12px; }
+
+    .loading { text-align: center; padding: 80px; color: var(--muted); }
+    .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--blue);
+      border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo"><span>Bot</span>Dashboard</div>
+  <div class="user-info">
+    <img class="user-avatar" id="userAvatar" src="" alt="" onerror="this.style.display='none'"/>
+    <span class="user-name" id="userName">Lädt...</span>
+    <a href="/logout" class="btn-logout">Abmelden</a>
+  </div>
+</nav>
+
+<main>
+  <div class="page-header">
+    <span class="page-tag">Schritt 1 von 2</span>
+    <h1>SERVER AUSWÄHLEN</h1>
+    <p class="page-sub">Wähle den Server, den du verwalten möchtest. Du musst Administrator oder Server-Manager sein.</p>
+  </div>
+
+  <div id="serversContainer">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Server werden geladen...</p>
+    </div>
+  </div>
+</main>
+
+<script>
+async function init() {
+  try {
+    const [userRes, guildsRes] = await Promise.all([
+      fetch('/api/user').then(r => r.json()),
+      fetch('/api/guilds').then(r => r.json())
+    ]);
+
+    // User info
+    const avatar = userRes.avatar
+      ? `https://cdn.discordapp.com/avatars/${userRes.id}/${userRes.avatar}.png`
+      : `https://cdn.discordapp.com/embed/avatars/${parseInt(userRes.discriminator) % 5}.png`;
+    document.getElementById('userAvatar').src = avatar;
+    document.getElementById('userName').textContent = userRes.global_name || userRes.username;
+
+    // Server grid
+    const container = document.getElementById('serversContainer');
+    if (!guildsRes.length) {
+      container.innerHTML = '<div class="loading"><p style="color:var(--muted)">Keine Server gefunden, auf denen du Admin-Rechte hast.</p></div>';
+      return;
+    }
+
+    container.className = 'servers-grid';
+    container.innerHTML = guildsRes.map(g => {
+      const icon = g.icon
+        ? `<img class="server-icon" src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png" alt="${g.name}"/>`
+        : `<div class="server-icon-placeholder">${g.name.charAt(0)}</div>`;
+      return `
+        <a href="/dashboard/${g.id}" class="server-card">
+          ${icon}
+          <div class="server-name">${escHtml(g.name)}</div>
+          <div class="server-id">${g.id}</div>
+          <div class="server-btn">⚙️ Verwalten</div>
+        </a>
+      `;
+    }).join('');
+  } catch (e) {
+    document.getElementById('serversContainer').innerHTML =
+      '<div class="loading"><p style="color:#ff4444">Fehler beim Laden. <a href="/" style="color:var(--blue)">Zurück</a></p></div>';
+  }
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+init();
+</script>
+</body>
+</html>
